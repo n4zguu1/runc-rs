@@ -8,6 +8,13 @@ An OCI-compatible container runtime written in Rust.
 - `crates/libcli` — command-line interface and command handling.
 - `crates/runc-rs` — executable entry point; delegates to `libcli`.
 
+## Project documentation
+
+- [Project brief](docs/project.md)
+- [Architecture](docs/architecture.md)
+- [Milestones](docs/milestones.md)
+- [Architecture decision records](docs/ADRs/README.md)
+
 ## Build and run
 
 ```sh
