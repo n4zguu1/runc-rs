@@ -1,0 +1,12 @@
+[package]
+name = "runc-rs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "runc-rs"
+path = "src/main.rs"
+
+[dependencies]
+libcli.workspace = true
