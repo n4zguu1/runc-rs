@@ -1,0 +1,15 @@
+[workspace]
+members = [
+    "crates/libcontainer",
+    "crates/libcli",
+    "crates/runc-rs",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+version = "0.1.0"
+
+[workspace.dependencies]
+libcli = { path = "crates/libcli" }
