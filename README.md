@@ -1,6 +1,6 @@
 # runc-rs
 
-An OCI-compatible container runtime written in Rust.
+An [OCI-compatible](https://github.com/opencontainers/runtime-spec/blob/main/spec.md) container runtime written in Rust.
 
 ## Workspace layout
 
