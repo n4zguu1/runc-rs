@@ -9,6 +9,10 @@ OCI complaint container runtime.
 ### Details
 project based learning trying to implement oci runtime specs, in attempt to understand Linux features more. 
 
+
+### Supported Platform
+- Linux 5.7+. support for legacy kernels to reduce the complexity of the project and focus on the learning goals.
+
 ### Prior Art
 - youki implemented in rust
 - runc implementd in golang

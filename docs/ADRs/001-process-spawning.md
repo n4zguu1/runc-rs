@@ -1,8 +1,8 @@
 # ADR 001: Container process creation model
 
-- Status: Proposed
-- Date: 2026-11-18
-- Decision owners: Project maintainer
+- Status: Accepted
+- Date: 2026-11-24
+- Decision owners: n4zguu1
 
 ## Context
 
@@ -11,40 +11,46 @@ cgroup, prepare the root filesystem, and replace itself with the workload
 process.
 
 The MVP needs a model that is understandable, testable on Linux, and sufficient
-for the four core commands. It must not unnecessarily couple architecture
-documentation to a specific syscall API before implementation evidence exists.
+for the four core commands. A spike validated `clone3(2)` on the target Linux
+environment, confirming atomic namespace creation, direct cgroup v2 placement,
+and race-free parent-child lifecycle management via a process file descriptor.
 
 ## Decision
 
-No process creation mechanism is selected yet.
+`runc-rs` will use `clone3(2)` with `CLONE_PIDFD` and `CLONE_INTO_CGROUP` as
+its container process creation mechanism.
 
-The process is to be validated by a spike before an accepted decision is made.
-Candidates are:
-
-- `fork(2)` plus `unshare(2)` and `setns(2)` as needed
-- `clone(2)` with namespace flags
-- `clone3(2)` with a `pidfd`
-
-## Spike exit criteria
-
-The spike must demonstrate:
-
-- The parent can detect setup failures from the child.
-- The child is assigned to the requested cgroup before workload execution.
-- Namespace setup is reproducible in a rootful test environment.
-- The workload has the expected PID namespace view.
-- A failure can leave neither an orphaned workload nor stale runtime state.
+- **Namespace & PID 1 setup:** `clone3(2)` creates the child directly inside the
+  requested namespaces (including `CLONE_NEWPID`), avoiding a double-fork sequence
+  and placing the child immediately as PID 1 in its new PID namespace.
+- **Cgroup assignment:** Passing `CLONE_INTO_CGROUP` with an open cgroup v2
+  directory file descriptor places the child into the target cgroup atomically
+  at process creation before any user-space instructions execute.
+- **Process tracking & failure handling:** `CLONE_PIDFD` provides a race-free
+  `pidfd` for monitoring child exit (`poll`/`waitid`) and signaling
+  (`pidfd_send_signal`), while a synchronization pipe coordinates rootfs setup
+  and propagates child setup errors back to the parent for deterministic cleanup.
 
 ## Consequences
 
-Deferring the decision keeps the architecture reviewable but prevents finalizing
-the process lifecycle pseudocode. The first implementation milestone must
-include the spike and a small Linux integration test.
+- **Positive:**
+  - Eliminates intermediate grandchild processes for `CLONE_NEWPID` and avoids
+    post-fork cgroup migration races.
+  - Provides race-free process lifecycle tracking and signaling via `pidfd`
+    without PID reuse hazards.
+  - Keeps process creation self-contained in a single structured `clone_args`
+    syscall without manual child stack allocation.
+- **Negative / Trade-offs:**
+  - Requires a modern Linux kernel baseline (Linux 5.7+ for `CLONE_INTO_CGROUP`
+    and cgroup v2), dropping support for legacy kernels.
+  - Requires direct `syscall(SYS_clone3, ...)` bindings and careful alignment of
+    `struct clone_args` in Rust, as `libc` exposure varies across targets.
+  - Code executed in the child between `clone3(2)` and `execve(2)` must remain
+    async-signal-safe and close all non-essential `O_CLOEXEC` descriptors.
 
 ## Alternatives
 
-| Alternative | Rejection reason for now |
+| Alternative | Rejection reason |
 |---|---|
-| `fork` | Familiar and portable across older kernels, but needs a spike to prove the synchronization design. |
-| `clone` | Direct namespace creation is concise, but flag and stack handling add complexity. |
-| `clone3` | Useful for modern kernel features, but not a safe MVP dependency without checking kernel support. |
+| `fork(2)` + `unshare(2)` / `setns(2)` | Requires a second `fork(2)` after `unshare(CLONE_NEWPID)` to establish PID 1 and introduces a window where the child runs outside the target cgroup before migration. |
+| `clone(2)` | Flag space is exhausted for newer namespace flags, lacks `CLONE_INTO_CGROUP`, and requires managing an explicit child stack pointer. |

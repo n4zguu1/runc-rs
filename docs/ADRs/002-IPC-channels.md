@@ -2,13 +2,14 @@
 
 - Status: Draft
 - Date: 2026-11-18
+- Decision owners: n4zguu1
 
 ## Context
 
 Container setup spans the CLI process, a setup process, and the workload
 process. Setup failures must reach the parent before `create` reports success.
 The interface must support process synchronization without becoming a general
-message bus.
+message bus. also to handle the oci-specs [lifecycle](https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#lifecycle) errors and propagate them to the parent process.
 
 ## Decision
 
